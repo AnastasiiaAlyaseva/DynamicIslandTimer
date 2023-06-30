@@ -4,6 +4,7 @@ import ActivityKit
 struct ContentView: View {
     
     @State private var currentActivity: Activity<TimerAttributes>?
+    @State private var currentActivityContent: ActivityContent<Activity<TimerAttributes>.ContentState>?
     @State private var selectedDuration = 1
     @State private var isTimerRunning = false
     
@@ -21,16 +22,19 @@ struct ContentView: View {
                 .resizable()
                 .frame(width: 100, height: 100)
                 .foregroundColor(.blue)
-           
-            Button( action: startActivity) {
-                Text("Start Timer")
-                    .foregroundColor(.black)
-                    .font(.title2)
-            }
-            Button(action: stopActivity) {
-                Text("Stop Timer")
-                    .foregroundColor(.black)
-                    .font(.title3)
+            
+            HStack {
+                Button(action: startActivity) {
+                    Text("Start Timer")
+                        .font(.title2)
+                }
+                .disabled(isTimerRunning)
+                
+                Button(action: stopActivity) {
+                    Text("Stop Timer")
+                        .font(.title2)
+                }
+                .disabled(!isTimerRunning)
             }
         }
         .padding()
@@ -45,16 +49,24 @@ struct ContentView: View {
         let state = TimerAttributes.TimerState(plannedDuration: interval)
         
         do {
-            currentActivity = try Activity<TimerAttributes>.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
+            let activityContent = ActivityContent(state: state, staleDate: nil)
+            currentActivityContent = activityContent
+            currentActivity = try Activity<TimerAttributes>.request(
+                attributes: attributes,
+                content: activityContent
+            )
+            isTimerRunning = true
         } catch {
             print(error.localizedDescription)
         }
     }
     
     func stopActivity() {
-//        currentActivity?.cancel()
-        currentActivity = nil
-        isTimerRunning = false
+        Task {
+            await currentActivity?.end(currentActivityContent,  dismissalPolicy: .immediate)
+            currentActivity = nil
+            isTimerRunning = false
+        }
     }
 }
 
